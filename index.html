@@ -1,0 +1,330 @@
+<html><head>
+<title>INFO 3300 - March 4</title>
+
+  <link href="https://fonts.googleapis.com/css?family=Lato:400,700|Raleway:400,700" rel="stylesheet">
+
+  <link rel="stylesheet" type="text/css" href="../css/normalize.css">
+  <link rel="stylesheet" type="text/css" href="../css/skeleton.css">
+  <link rel="stylesheet" type="text/css" href="../css/custom-style.css">
+
+  <link rel="stylesheet" href="//cdnjs.cloudflare.com/ajax/libs/highlight.js/9.14.2/styles/default.min.css">
+  <script src="//cdnjs.cloudflare.com/ajax/libs/highlight.js/9.14.2/highlight.min.js"></script>
+  <script src="https://d3js.org/d3.v5.min.js"></script>
+  <script src="https://d3js.org/topojson.v2.min.js"></script>
+  <style>
+
+  .state {
+    fill: lightgrey;
+  }
+
+  .outline {
+    stroke: black;
+    stroke-width: 1px;
+    fill: none;
+  }
+
+  .graticule {
+    fill: none;
+    stroke: white;
+  }
+
+  </style>
+
+</head>
+<body>
+  <div class="container larger">
+  <h3>Notes for March 4</h3>
+  <p>
+    We have a new import at the top of the file: <a href="https://github.com/topojson/topojson">TopoJSON</a><br/>
+    TopoJSON provides a helpful framework for storing, loading, and displaying topographical data. Check out its <a href="https://github.com/topojson/topojson-specification">data specification</a>.
+  </p>
+  <p>
+    More on <a href="https://github.com/d3/d3-geo">d3.geo</a> and its <a href="https://github.com/d3/d3-geo#azimuthal-projections">geographic projections</a>.
+  </p>
+
+  <h5>HTML for today:</h5>
+
+
+  <svg id="choropleth" height="400" width="600" style="background: #445; margin-top:50px" >
+
+  </svg>
+
+  <svg id="colorLegend" height="100" width="600" style="background: #fff; margin-top:30px" >
+
+  </svg>
+
+
+  <!-- This block will be automatically filled with syntax-highlighted code from the script below -->
+  <h5>Code for today:</h5>
+  <pre>
+    <code id="display1" class="hljs javascript">
+    </code>
+  </pre>
+
+
+  <!--- Code for today's class --->
+  <script id="notes1">
+
+  const svg = d3.select("#choropleth");
+  const width = svg.attr("width");
+  const height = svg.attr("height");
+  const margin = { top: 20, right: 20, bottom: 20, left:20};
+  const mapWidth = width - margin.left - margin.right;
+  const mapHeight = height - margin.top - margin.bottom;
+  const map = svg.append("g")
+                  .attr("transform","translate("+margin.left+","+margin.top+")");
+
+  // 0. Let's explore a new way to use promises for data imports that might be a bit cleaner when importing lots of files
+  
+  // const testFunc = async function() {
+  // 
+  //   var start = Date.now();
+  //   while (Date.now() < start + 10000) {}
+  // 
+  // }
+  // testFunc();
+  
+  
+  // 1. Our async function to build the map
+  const requestData = async function() {
+    
+    // 2. Draw a map of US using topoJSON
+    // 2a. Import data as synchronous call to topoJSON data file
+    // Care of Mike Bostock:
+    //   "../datasets/us.json"
+    const us = await d3.json("../datasets/us.json");
+    console.log(us);
+    
+    // 2b. Pick out topographic features and build d3 helpers
+    var states = topojson.feature(us, us.objects.states);
+    var statesMesh = topojson.mesh(us, us.objects.states);
+    var projection = d3.geoAlbersUsa().fitSize([mapWidth, mapHeight], states);
+    var path = d3.geoPath().projection(projection);
+    
+    console.log(statesMesh);
+    // 2c. Draw states and outlines
+    map.selectAll("path.state").data(states.features)
+       .join("path")
+       .attr("class", "state")
+       .attr("note", d => d.id)
+       .attr("d", path);
+       
+    map.append("path").datum(statesMesh)
+       .attr("class","outline")
+       .attr("d", path);
+    
+    
+    // 3a. Import survey data as synchronous calls
+    // "../datasets/us-state-names.tsv"
+    // "../datasets/state-survey-responses.csv"
+    var surveyData = await d3.csv("../datasets/state-survey-responses.csv");
+    console.log(surveyData);
+    var stateIDs = await d3.tsv("../datasets/us-state-names.tsv");
+    console.log(stateIDs);
+    
+    // 3b. Generate the counts we will need
+    let stateCounts = {}; // stateCounts[ stateName ] -> count
+    let idToState = {}  // idToState[ stateID ] -> stateName
+    
+    stateIDs.forEach( row => {
+      stateCounts[row.name] = 0;
+      idToState[row.id] = row.name;
+    });
+    surveyData.forEach( row => {
+      let splitRow = row.Boxes.split(", ");
+      splitRow.forEach( state => {
+        stateCounts[state] += 1;
+      });
+    });
+    console.log(stateCounts)
+    
+    // 3c. Make a d3 color scale for frequency    
+    const minMax = d3.extent(stateIDs, d => stateCounts[d.name] );
+    console.log(minMax);
+    
+    // This scale wasn't great because it crunched most of the points to the bottom 3rd of the color scale
+    //  3 state outliers with high values mean it is very distorted
+    // const colorScale = d3.scaleSequential(d3.interpolateGnBu).domain(minMax);
+    
+    // Next, we try quantize, which splits the domain into bins
+    // In general, it splits it into as many bins as you provide items in the range
+    
+    // const colorScale = d3.scaleQuantize()
+    //                      .domain(minMax)
+    //                      .range(["rgb(240, 242, 211)","rgb(217, 219, 106)","rgb(83, 196, 221)","rgb(30, 27, 187)"])
+    
+    
+    // Finally, we use quantile, which looks at the points statistically
+    //  It will give weird results if you send minMax to the .domain(). Why?
+    //  ...because it needs to inspect all of the values in order to see the point distribution
+    //  we use d3.values() here to get all of the values out of the stateCounts dictionary
+    
+    const colorScale = d3.scaleQuantile()
+                         .domain(d3.values(stateCounts))
+                         .range(["#fff","#d1e8ed","#adc2da","#8879b3","#762b80"]);
+    
+                 
+     // //  *** One student suggested using a log scale (which might work well).
+     // //   Here is one way to do this (note the use of Symlog because our domain includes 0)
+     // //   We create a new function that feeds the data value into a Symlog scale programmed to return 0 to 1
+     // //   It then routes the [0,1] value to interpolateGnBu, which returns a color, doing what we want
+     // //   Just like with normal scales, you feed them a data value and get back a color/pixel
+     // const colorScale = d => d3.interpolateGnBu( d3.scaleSymlog().domain(minMax).range([0,1])(d) );
+     // colorScale.domain = () => minMax;  // Hack to get legend working again because it uses scale.domain()
+     // // Another way to do this would be:
+     // const colorScale = d3.scaleLog().domain(minMax).interpolate(d => d3.interpolateGnBu)
+    
+    
+    // 3d. Recolor the states to make a choropleth map
+    map.selectAll(".state")
+       .style("fill", d => colorScale( stateCounts[ idToState[d.id] ]) );
+    
+    // 3e. Use the extra legend code to draw a legend
+    drawLegend(d3.select("#colorLegend"), colorScale);
+    
+    
+    
+    
+    
+    // 4. Add a tooltip that "sticks" below the state
+    let tooltipWidth = 120;
+    let tooltipHeight = 40;
+    
+    // Stub code to draw the tooltip - we use an SVG element here
+    // You can use an absolute-positioned HTML element, but the positioning requires some more work
+    let tooltip = map.append("g")
+                     .attr("class","tooltip")
+                     .attr("visibility","hidden");
+    tooltip.append("rect")
+           .attr("fill", "black")
+           .attr("opacity", 0.9)
+           .attr("width",tooltipWidth)
+           .attr("height",tooltipHeight)
+    let txt = tooltip.append("text")
+                     .attr("fill", "white")
+                     .attr("text-anchor","middle")
+                     .attr("alignment-baseline","hanging")
+                     .attr("x", tooltipWidth / 2.0)
+                     .attr("y", 2);
+    let txt2 = tooltip.append("text")
+                     .attr("fill", "white")
+                     .attr("text-anchor","middle")
+                     .attr("alignment-baseline","hanging")
+                     .attr("x", tooltipWidth / 2.0)
+                     .attr("y", 22);
+    
+    d3.selectAll(".state").on("mouseenter", mouseEntersPlot);
+    d3.selectAll(".state").on("mouseout",  mouseLeavesPlot);
+
+    function mouseEntersPlot() {
+      // Make tooltip visible
+      tooltip.style("visibility","visible")
+      
+      // Find the state SVG element and add stroke
+      let state = d3.select(this);
+      state.attr("stroke","black")
+           .attr("stroke-width", 3);
+      
+      // Using .datum() to recover the data for the state element (because we used a .join() to make it)...
+      // ... get the name of the state and count
+      txt.text(idToState[ state.datum().id  ]);
+      txt2.text(stateCounts[ idToState[ state.datum().id  ] ]);
+      
+      // You can use the geoPath() generator to do all sorts of helpful things 
+      // let centroid = path.centroid( state.datum() );  // Get the pixel "center" of the state
+      let bounds = path.bounds( state.datum() );   // Get the pixel boundaries of the state
+      // In both cases here, the geoPath() is parsing the fancy topoJSON data to figure out pixels using the projection
+      
+      // Place it at the bottom of the state, centered
+      let xPos = (bounds[0][0]+bounds[1][0])/2.0 - tooltipWidth/2.0;
+      let yPos = bounds[1][1];
+      
+      // Transform the <g> group so that everything moves together easily
+      tooltip.attr("transform","translate("+xPos+","+yPos+")");
+      
+        
+    }
+
+    function mouseLeavesPlot() {
+    
+     // Hide when you leave a state
+     tooltip.style("visibility","hidden");
+     
+     let state = d3.select(this);
+     state.attr("stroke","none")
+          .attr("stroke-width", 0);
+    }
+    
+    
+    
+  };
+  requestData();
+
+
+
+
+  </script>
+
+
+
+
+
+  
+  <script>
+    
+    // Function needs a d3 selected SVG canvas where it will draw the legend and a source color scale
+    function drawLegend(legend, legendColorScale) {
+      
+      // Bonus code here to draw an adaptive gradient legend so we can see different color scales for choropleth maps
+      //  Credit Prof. Rz if you are basing a legend on this structure, and note SERIOUS PERFORMANCE CONSIDERATIONS
+      
+      //const legend = d3.select("#colorLegend");
+      const legendWidth = legend.attr("width");
+      const legendHeight = legend.attr("height");
+      const legendMinMax = d3.extent(legendColorScale.domain()); // way to recover the minMax from most kinds of scales
+      const barHeight = 60;
+      const stepSize = 4; // warning, not using a canvas element so lots of rect tags will be created for low stepSize, causing issues with performance
+      // Extend the minmax by 1 in either direction to expose more features
+      const pixelScale = d3.scaleLinear().domain([0,legendWidth-40]).range([legendMinMax[0]-1,legendMinMax[1]+1]); // In this case the "data" are pixels, and we get numbers to use in colorScale
+      const barScale = d3.scaleLinear().domain([legendMinMax[0]-1,legendMinMax[1]+1]).range([0,legendWidth-40]);
+      const barAxis = d3.axisBottom(barScale);
+      // Check if we're using a quantile scale - if so, we can do better
+      if (legendColorScale.hasOwnProperty('quantiles')) {
+        // Use the quantile breakpoints plus the min and max of the scale as tick values
+        barAxis.tickValues(legendColorScale.quantiles().concat( legendMinMax ));
+      }
+      legend.append("g")
+        .attr("class", "colorbar axis")
+        .attr("transform","translate("+(20)+","+(barHeight+5)+")")
+        .call(barAxis);
+      // Draw rects of color down the bar
+      let bar = legend.append("g").attr("transform","translate("+(20)+","+(0)+")")
+      for (let i=0; i<legendWidth-40; i=i+stepSize) {
+        bar.append("rect")
+          .attr("x", i)
+          .attr("y", 0)
+          .attr("width", stepSize)
+          .attr("height",barHeight)
+          .style("fill", legendColorScale( pixelScale(i) )); // pixels => countData => color
+      }
+      // Put lines in to mark actual min and max of our data
+      bar.append("line").attr("stroke","white").attr("stroke-width",3).attr("x1", barScale(legendMinMax[0])).attr("x2", barScale(legendMinMax[0])).attr("y1", 0).attr("y1", barHeight+4);
+      bar.append("line").attr("stroke","white").attr("stroke-width",3).attr("x1", barScale(legendMinMax[1])).attr("x2", barScale(legendMinMax[1])).attr("y1", 0).attr("y1", barHeight+4);
+      
+    }
+  </script>
+
+
+
+
+  <!--- calls the highlight library to fill the <pre> tag with code --->
+  <script>
+  document.getElementById("display1").innerText = document.getElementById("notes1").innerText;
+  hljs.initHighlightingOnLoad();
+  </script>
+
+
+
+  </div>
+</body>
+</html>
