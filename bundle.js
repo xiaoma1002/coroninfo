@@ -1,0 +1,28 @@
+(function (d3, topojson) {
+  'use strict';
+
+  const svg = d3.select('svg');
+
+  const projection = d3.geoNaturalEarth1();
+  const pathGenerator = d3.geoPath().projection(projection);
+
+
+  svg.append('path')
+  	.attr('d', pathGenerator({type: "Sphere"}))
+  	.attr('class','Sphere');
+
+
+  d3.json('https://cdn.jsdelivr.net/npm/world-atlas@2/countries-110m.json')
+  	.then(data => {
+    	const countries = topojson.feature(data, data.objects.countries);
+    	console.log(countries);
+    
+    	svg.selectAll('path')
+        .data(countries.features)
+        .enter().append('path')// we use path in css
+        .attr('d', pathGenerator);
+  	});
+
+}(d3, topojson));
+
+//# sourceMappingURL=data:application/json;charset=utf-8;base64,eyJ2ZXJzaW9uIjozLCJmaWxlIjoiaW5kZXguanMiLCJzb3VyY2VzIjpbImluZGV4LmpzIl0sInNvdXJjZXNDb250ZW50IjpbImltcG9ydCB7IHNlbGVjdCwganNvbiwgZ2VvUGF0aCwgZ2VvTmF0dXJhbEVhcnRoMSAgfSBmcm9tICdkMyc7XG5pbXBvcnQgeyBmZWF0dXJlIH0gZnJvbSAndG9wb2pzb24nO1xuY29uc3Qgc3ZnID0gc2VsZWN0KCdzdmcnKTtcblxuY29uc3QgcHJvamVjdGlvbiA9IGdlb05hdHVyYWxFYXJ0aDEoKTtcbmNvbnN0IHBhdGhHZW5lcmF0b3IgPSBnZW9QYXRoKCkucHJvamVjdGlvbihwcm9qZWN0aW9uKTtcblxuXG5zdmcuYXBwZW5kKCdwYXRoJylcblx0LmF0dHIoJ2QnLCBwYXRoR2VuZXJhdG9yKHt0eXBlOiBcIlNwaGVyZVwifSkpXG5cdC5hdHRyKCdjbGFzcycsJ1NwaGVyZScpO1xuXG5cbmpzb24oJ2h0dHBzOi8vY2RuLmpzZGVsaXZyLm5ldC9ucG0vd29ybGQtYXRsYXNAMi9jb3VudHJpZXMtMTEwbS5qc29uJylcblx0LnRoZW4oZGF0YSA9PiB7XG4gIFx0Y29uc3QgY291bnRyaWVzID0gZmVhdHVyZShkYXRhLCBkYXRhLm9iamVjdHMuY291bnRyaWVzKTtcbiAgXHRjb25zb2xlLmxvZyhjb3VudHJpZXMpO1xuICBcbiAgXHRzdmcuc2VsZWN0QWxsKCdwYXRoJylcbiAgICAgIC5kYXRhKGNvdW50cmllcy5mZWF0dXJlcylcbiAgICAgIC5lbnRlcigpLmFwcGVuZCgncGF0aCcpLy8gd2UgdXNlIHBhdGggaW4gY3NzXG4gICAgICAuYXR0cignZCcsIHBhdGhHZW5lcmF0b3IpO1xuXHR9KTsiXSwibmFtZXMiOlsic2VsZWN0IiwiZ2VvTmF0dXJhbEVhcnRoMSIsImdlb1BhdGgiLCJqc29uIiwiZmVhdHVyZSJdLCJtYXBwaW5ncyI6Ijs7O0VBRUEsTUFBTSxHQUFHLEdBQUdBLFNBQU0sQ0FBQyxLQUFLLENBQUMsQ0FBQzs7RUFFMUIsTUFBTSxVQUFVLEdBQUdDLG1CQUFnQixFQUFFLENBQUM7RUFDdEMsTUFBTSxhQUFhLEdBQUdDLFVBQU8sRUFBRSxDQUFDLFVBQVUsQ0FBQyxVQUFVLENBQUMsQ0FBQzs7O0VBR3ZELEdBQUcsQ0FBQyxNQUFNLENBQUMsTUFBTSxDQUFDO0lBQ2hCLElBQUksQ0FBQyxHQUFHLEVBQUUsYUFBYSxDQUFDLENBQUMsSUFBSSxFQUFFLFFBQVEsQ0FBQyxDQUFDLENBQUM7SUFDMUMsSUFBSSxDQUFDLE9BQU8sQ0FBQyxRQUFRLENBQUMsQ0FBQzs7O0FBR3pCQyxTQUFJLENBQUMsZ0VBQWdFLENBQUM7SUFDcEUsSUFBSSxDQUFDLElBQUksSUFBSTtLQUNaLE1BQU0sU0FBUyxHQUFHQyxnQkFBTyxDQUFDLElBQUksRUFBRSxJQUFJLENBQUMsT0FBTyxDQUFDLFNBQVMsQ0FBQyxDQUFDO0tBQ3hELE9BQU8sQ0FBQyxHQUFHLENBQUMsU0FBUyxDQUFDLENBQUM7O0tBRXZCLEdBQUcsQ0FBQyxTQUFTLENBQUMsTUFBTSxDQUFDO1NBQ2pCLElBQUksQ0FBQyxTQUFTLENBQUMsUUFBUSxDQUFDO1NBQ3hCLEtBQUssRUFBRSxDQUFDLE1BQU0sQ0FBQyxNQUFNLENBQUM7U0FDdEIsSUFBSSxDQUFDLEdBQUcsRUFBRSxhQUFhLENBQUMsQ0FBQztJQUM5QixDQUFDOzs7OyJ9

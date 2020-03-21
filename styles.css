@@ -1,0 +1,15 @@
+body {
+  margin: 0px;
+  overflow: hidden;
+  background-color: grey; 
+}
+
+.Sphere{
+	fill: orange;
+}
+
+path {
+  fill: black;
+  stroke: white;
+  stroke-opacity: 0.4;
+}
