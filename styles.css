@@ -5,11 +5,15 @@ body {
 }
 
 .Sphere{
-	fill: orange;
+	fill: black;
 }
 
-path {
-  fill: black;
-  stroke: white;
-  stroke-opacity: 0.4;
+.country {
+  fill: orange;
+  stroke: red;
+  stroke-width: 0.2px;
+}
+
+.country:hover{
+	fill:white;
 }
